@@ -3,8 +3,8 @@ from streamlit_gsheets import GSheetsConnection
 import pandas as pd
 import time
 
-st.set_page_config(page_title="Residency Match Practice", page_icon="🩺", layout="wide")
-st.title("Residency Match - Live Dashboard 🩺")
+st.set_page_config(page_title="The Match", page_icon="🩺", layout="wide")
+st.title("The Match 🩺")
 
 conn = st.connection("gsheets", type=GSheetsConnection)
 
