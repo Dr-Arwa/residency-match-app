@@ -92,7 +92,7 @@ else:
         else:
             st.warning("لم تقومي بإدخال رغباتك بعد!")
 
-with col2:
+    with col2:
         st.subheader("المقاعد المتاحة لترتيبك")
         remaining_for_user = [spec for spec, count in user_available_seats.items() if count > 0]
         
@@ -114,6 +114,8 @@ with col2:
                 ''', 
                 unsafe_allow_html=True
             )
+
+
 
     st.divider()
 
