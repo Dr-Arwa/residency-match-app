@@ -8,14 +8,16 @@ st.title("Residency Match - Live Dashboard 🩺")
 
 conn = st.connection("gsheets", type=GSheetsConnection)
 
-# --- Data Loading with Error Handling ---
+# --- Data Loading (142 Interns, 106 Seats) ---
 try:
+    # Use 10s TTL to prevent 429 Errors
     interns_df = conn.read(worksheet="Interns", ttl=10)
     specialties_df = conn.read(worksheet="Specialties", ttl=10)
 except Exception as e:
     st.error("Too many people are accessing the system. Please refresh in 15 seconds.")
     st.stop()
 
+# Ensure Choices column is text
 interns_df['Choices'] = interns_df['Choices'].astype(object)
 
 # --- Authentication ---
@@ -24,48 +26,54 @@ if 'logged_in' not in st.session_state:
 
 if not st.session_state['logged_in']:
     st.subheader("Login / تسجيل الدخول")
-    user_name = st.selectbox("Select your name / اختاري اسمك", interns_df['Name'].dropna().tolist())
-    password_input = st.text_input("Enter your Password / أدخلي كلمة المرور", type="password")
+    user_name = st.selectbox("Select your name", interns_df['Name'].dropna().tolist())
+    password_input = st.text_input("Password", type="password")
 
-    if st.button("Login / دخول"):
+    if st.button("Login"):
         user_row = interns_df[interns_df['Name'] == user_name].iloc[0]
         correct_password = str(user_row['Password']).replace('.0', '').strip()
         if password_input.strip() == correct_password and correct_password != "":
-            st.session_state['logged_in'] = True
-            st.session_state['user_name'] = user_name
-            st.session_state['user_rank'] = int(user_row['Rank'])
+            st.session_state.update({'logged_in': True, 'user_name': user_name, 'user_rank': int(user_row['Rank'])})
             st.rerun()
         else:
             st.error("Incorrect Password.")
 else:
-    # --- LOGGED IN AREA ---
     user_name = st.session_state['user_name']
     user_rank = st.session_state['user_rank']
 
-    # --- 1. THE SIMULATION ENGINE ---
-    # This runs every time the page loads to ensure results are "Live"
-    available_seats = specialties_df.set_index('Specialty_Name')['Total_Seats'].to_dict()
+    # --- THE FIXED SIMULATION ENGINE ---
+    # Start with a fresh count of ALL seats
+    full_inventory = specialties_df.set_index('Specialty_Name')['Total_Seats'].to_dict()
     
-    # Sort ALL interns who have submitted by rank to simulate the "Turn"
-    submitted_interns = interns_df[interns_df['Choices'].notna()].copy()
-    submitted_interns = submitted_interns.sort_values('Rank')
+    # Get all submitted data and sort strictly by Rank
+    all_submissions = interns_df[interns_df['Choices'].notna()].copy()
+    all_submissions = all_submissions.sort_values('Rank')
 
-    matches = {} # Stores the final result for everyone who submitted
+    # This will hold the "Final Match" for everyone
+    matches = {}
+    # This will hold the seats available specifically for YOU
+    user_available_seats = full_inventory.copy()
 
-    for _, row in submitted_interns.iterrows():
+    for _, row in all_submissions.iterrows():
         choices = str(row['Choices']).split(',')
-        assigned = False
+        assigned_specialty = "Unmatched"
+        
         for choice in choices:
             choice = choice.strip()
-            if choice in available_seats and available_seats[choice] > 0:
-                available_seats[choice] -= 1
-                matches[row['Name']] = choice
-                assigned = True
+            # If the specialty has seats left in the "Full Inventory"
+            if choice in full_inventory and full_inventory[choice] > 0:
+                # If this intern is HIGHER ranked than you, they consume a seat from your view
+                if int(row['Rank']) < user_rank:
+                    user_available_seats[choice] -= 1
+                
+                # They consume the seat from the global match
+                full_inventory[choice] -= 1
+                assigned_specialty = choice
                 break
-        if not assigned:
-            matches[row['Name']] = "Unmatched (All choices taken)"
+        
+        matches[row['Name']] = assigned_specialty
 
-    # --- 2. DISPLAY THE RESULT ---
+    # --- DISPLAY ---
     st.info(f"Welcome {user_name} | Rank: {user_rank}")
     
     col1, col2 = st.columns([1, 1])
@@ -73,47 +81,40 @@ else:
     with col1:
         st.subheader("Your Current Status / حالتك الحالية")
         if user_name in matches:
-            current_match = matches[user_name]
-            st.success(f"### Current Tentative Match: \n # {current_match}")
-            st.write("This is based on your rank and the current choices of higher-ranking interns.")
+            st.success(f"### Current Tentative Match: \n # {matches[user_name]}")
         else:
-            st.warning("You haven't submitted your choices yet! / لم تقومي بإدخال رغباتك بعد")
+            st.warning("You haven't submitted your choices yet!")
 
     with col2:
-        st.subheader("Available Seats / المقاعد المتاحة")
-        remaining_list = [spec for spec, count in available_seats.items() if count > 0]
-        for spec in remaining_list:
-            st.write(f"- {spec}: ({int(available_seats[spec])} left)")
+        st.subheader("Available Seats for Your Rank / المتاح لترتيبك")
+        # Filter: Only show seats that haven't been taken by HIGHER ranks
+        remaining_for_user = [spec for spec, count in user_available_seats.items() if count > 0]
+        
+        for spec in remaining_for_user:
+            st.write(f"- **{spec}**: {int(user_available_seats[spec])} seats left")
 
     st.divider()
 
-    # --- 3. SUBMISSION / UPDATE FORM ---
-    st.subheader("Update Your Preferences / تعديل الرغبات")
-    st.write("Note: If you have already saved, selecting new ones here and clicking 'Save' will replace your old list.")
-    
-    selected_choices = st.multiselect(
-        "Rank your preferred specialties in order (1st, 2nd, 3rd...):", 
-        specialties_df['Specialty_Name'].tolist() # Show ALL specialties so they can pick backups
-    )
+    # --- SUBMISSION ---
+    st.subheader("Update Your Preferences")
+    selected_choices = st.multiselect("Rank your preferences (Only available seats shown):", remaining_for_user)
 
-    if st.button("Save & Update Match / حفظ وتحديث النتيجة"):
+    if st.button("Save & Update"):
         if selected_choices:
             try:
-                # Force fresh read before saving to avoid overwriting
                 latest_df = conn.read(worksheet="Interns", ttl=0)
                 latest_df['Choices'] = latest_df['Choices'].astype(object)
                 latest_df.loc[latest_df['Name'] == user_name, 'Choices'] = ",".join(selected_choices)
-                
                 conn.update(worksheet="Interns", data=latest_df)
-                st.success("Preferences updated! Recalculating your match...")
+                st.success("Updated! Recalculating...")
                 st.cache_data.clear()
                 time.sleep(1)
                 st.rerun()
-            except Exception as e:
-                st.error("Server busy. Please try again in a few seconds.")
+            except Exception:
+                st.error("Server busy. Try again in 10 seconds.")
         else:
-            st.warning("Please select at least one choice.")
+            st.warning("Select at least one choice.")
 
-    if st.button("Logout / خروج"):
+    if st.button("Logout"):
         st.session_state['logged_in'] = False
         st.rerun()
