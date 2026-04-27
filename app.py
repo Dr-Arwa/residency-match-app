@@ -5,8 +5,6 @@ import time
 
 st.set_page_config(page_title="Residency Match Practice", page_icon="🩺", layout="wide")
 st.title("Residency Match - Live Dashboard 🩺")
-total_submitted = interns_df['Choices'].notna().sum()
-st.caption(f"Progress: {total_submitted} / 142 interns have submitted their preferences.")
 
 conn = st.connection("gsheets", type=GSheetsConnection)
 
@@ -18,6 +16,11 @@ try:
 except Exception as e:
     st.error("Too many people are accessing the system. Please refresh in 15 seconds.")
     st.stop()
+
+# progress
+
+total_submitted = interns_df['Choices'].notna().sum()
+st.caption(f"Progress: {total_submitted} / 142 interns have submitted their preferences.")
 
 # Ensure Choices column is text
 interns_df['Choices'] = interns_df['Choices'].astype(object)
