@@ -81,9 +81,16 @@ else:
     with col1:
         st.subheader("Your Current Status / حالتك الحالية")
         if user_name in matches:
-            st.success(f"### Current Tentative Match: \n # {matches[user_name]}")
+            # Using HTML to ensure the box and text align correctly for Arabic
+            st.markdown(
+                f'<div dir="rtl" style="text-align: right; background-color: #1e3d33; padding: 20px; border-radius: 10px; border: 1px solid #2e7d32;">'
+                f'<span style="font-size: 1.2rem;">التخصص المرشح لكِ حالياً هو:</span><br>'
+                f'<span style="font-size: 2rem; font-weight: bold; color: #4caf50;">{matches[user_name]}</span>'
+                f'</div>', 
+                unsafe_allow_html=True
+            )
         else:
-            st.warning("You haven't submitted your choices yet!")
+            st.warning("لم تقومي بإدخال رغباتك بعد!")
 
     with col2:
         st.subheader("Available Seats for Your Rank / المتاح لترتيبك")
@@ -91,7 +98,12 @@ else:
         remaining_for_user = [spec for spec, count in user_available_seats.items() if count > 0]
         
         for spec in remaining_for_user:
-            st.write(f"- **{spec}**: {int(user_available_seats[spec])} seats left")
+            st.markdown(
+                f'<div dir="rtl" style="text-align: right; font-size: 1.1rem;">'
+                f'• **{spec}**: متبقي {int(user_available_seats[spec])} مقعد'
+                f'</div>', 
+                unsafe_allow_html=True
+            )
 
     st.divider()
 
