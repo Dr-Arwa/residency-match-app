@@ -10,6 +10,10 @@ conn = st.connection("gsheets", type=GSheetsConnection)
 interns_df = conn.read(worksheet="Interns")
 specialties_df = conn.read(worksheet="Specialties")
 
+# --- to make the python understand that the specialties could be words not numbers ---
+
+interns_df['Choices'] = interns_df['Choices'].astype(object)
+
 # --- Authentication Section ---
 st.subheader("Login / تسجيل الدخول")
 
