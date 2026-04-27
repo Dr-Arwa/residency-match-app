@@ -5,6 +5,8 @@ import time
 
 st.set_page_config(page_title="Residency Match Practice", page_icon="🩺", layout="wide")
 st.title("Residency Match - Live Dashboard 🩺")
+total_submitted = interns_df['Choices'].notna().sum()
+st.caption(f"Progress: {total_submitted} / 142 interns have submitted their preferences.")
 
 conn = st.connection("gsheets", type=GSheetsConnection)
 
@@ -20,26 +22,48 @@ except Exception as e:
 # Ensure Choices column is text
 interns_df['Choices'] = interns_df['Choices'].astype(object)
 
-# --- Authentication ---
+# --- Authentication Section ---
 if 'logged_in' not in st.session_state:
     st.session_state['logged_in'] = False
 
 if not st.session_state['logged_in']:
-    st.subheader("Login / تسجيل الدخول")
-    user_name = st.selectbox("Select your name", interns_df['Name'].dropna().tolist())
-    password_input = st.text_input("Password", type="password")
+    st.subheader("Login")
+    
+    # 1. Create a list of RANKS instead of NAMES
+    rank_options = []
+    rank_to_data = {} # Bridge to link the label back to the full row
 
-    if st.button("Login"):
-        user_row = interns_df[interns_df['Name'] == user_name].iloc[0]
+    for _, row in interns_df.iterrows():
+        rank_num = int(row['Rank'])
+        name = str(row['Name'])
+        has_submitted = pd.notna(row['Choices']) and str(row['Choices']).strip() != ""
+        symbol = "✅" if has_submitted else "⏳"
+        
+        # Display as "Rank 1 ✅" or "الترتيب ١ ✅"
+        label = f"Rank {rank_num} | الترتيب {rank_num} {symbol}"
+        rank_options.append(label)
+        
+        # Store the real name and rank behind this label
+        rank_to_data[label] = {"name": name, "rank": rank_num}
+
+    # 2. Dropdown now shows Ranks
+    selected_label = st.selectbox("Select your Rank / اختاري ترتيبك", rank_options)
+    user_info = rank_to_data[selected_label]
+    
+    password_input = st.text_input("Enter your Password / أدخلي كلمة المرور", type="password")
+
+    if st.button("Login / دخول"):
+        # Fetch the row based on the hidden name/rank
+        user_row = interns_df[interns_df['Name'] == user_info['name']].iloc[0]
         correct_password = str(user_row['Password']).replace('.0', '').strip()
+        
         if password_input.strip() == correct_password and correct_password != "":
-            st.session_state.update({'logged_in': True, 'user_name': user_name, 'user_rank': int(user_row['Rank'])})
+            st.session_state['logged_in'] = True
+            st.session_state['user_name'] = user_info['name']
+            st.session_state['user_rank'] = user_info['rank']
             st.rerun()
         else:
-            st.error("Incorrect Password.")
-else:
-    user_name = st.session_state['user_name']
-    user_rank = st.session_state['user_rank']
+            st.error("Incorrect Password. / كلمة المرور غير صحيحة")
 
     # --- THE FIXED SIMULATION ENGINE ---
     # Start with a fresh count of ALL seats
