@@ -92,16 +92,26 @@ else:
         else:
             st.warning("لم تقومي بإدخال رغباتك بعد!")
 
-    with col2:
-        st.subheader("Available Seats for Your Rank / المتاح لترتيبك")
-        # Filter: Only show seats that haven't been taken by HIGHER ranks
+with col2:
+        st.subheader("المقاعد المتاحة لترتيبك")
         remaining_for_user = [spec for spec, count in user_available_seats.items() if count > 0]
         
         for spec in remaining_for_user:
+            # Clean HTML without ** symbols
+            # Added a light border-bottom for better visual separation
             st.markdown(
-                f'<div dir="rtl" style="text-align: right; font-size: 1.1rem;">'
-                f'• **{spec}**: متبقي {int(user_available_seats[spec])} مقعد'
-                f'</div>', 
+                f'''
+                <div dir="rtl" style="
+                    text-align: right; 
+                    font-size: 1.15rem; 
+                    padding: 8px 0; 
+                    border-bottom: 1px solid #3d3d3d; 
+                    font-weight: 500;
+                    color: #e0e0e0;
+                ">
+                    • {spec}: متبقي {int(user_available_seats[spec])} مقعد
+                </div>
+                ''', 
                 unsafe_allow_html=True
             )
 
