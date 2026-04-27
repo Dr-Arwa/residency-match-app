@@ -94,7 +94,7 @@ else:
     col1, col2 = st.columns([1, 1])
 
     with col1:
-        st.subheader("حالتك الحالية")
+        st.subheader("Current state")
         if user_name in matches:
             st.markdown(
                 f'<div dir="rtl" style="text-align: right; background-color: #1e3d33; padding: 20px; border-radius: 10px; border: 1px solid #2e7d32;">'
@@ -130,8 +130,8 @@ else:
     st.divider()
 
     # --- SUBMISSION ---
-    st.subheader("Update Your Preferences")
-    selected_choices = st.multiselect("Rank your preferences (Only available seats shown):", remaining_for_user)
+    st.subheader("Update Your Preferences \ تعديل الرغبات")
+    selected_choices = st.multiselect("أدخل الرغبات بالترتيب الذي تريده (Only available seats shown):", remaining_for_user)
 
     if st.button("Save & Update"):
         if selected_choices:
