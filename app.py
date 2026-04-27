@@ -43,7 +43,7 @@ if not st.session_state['logged_in']:
         symbol = "✅" if has_submitted else "⏳"
         
         # Display as "Rank 1 ✅" or "الترتيب ١ ✅"
-        label = f"Rank {rank_num} | الترتيب {rank_num} {symbol}"
+        label = f"Rank {rank_num} {symbol}"
         rank_options.append(label)
         
         # Store the real name and rank behind this label
